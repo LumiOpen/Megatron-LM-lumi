@@ -12,3 +12,4 @@ workdir/*
 debug-logs/*
 pythonuserbase/*
 ds_configs/*
+output.*

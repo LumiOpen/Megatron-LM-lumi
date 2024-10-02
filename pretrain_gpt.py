@@ -122,12 +122,12 @@ def train_valid_test_datasets_provider(train_val_test_num_samples):
         test_data_prefix=args.test_data_path,
         data_cache_path=args.data_cache_path)
     print_rank_0("> finished creating GPT datasets ...")
-
+    #torch.distributed.barrier()
     return train_ds, valid_ds, test_ds
 
 
 if __name__ == "__main__":
-    torch.multiprocessing.set_start_method('spawn')
+    #torch.multiprocessing.set_start_method('spawn')
 
     pretrain(train_valid_test_datasets_provider,
              model_provider,
