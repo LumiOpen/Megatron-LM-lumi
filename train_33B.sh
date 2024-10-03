@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=test-europa_33B
+#SBATCH --job-name=europa_33B
 #SBATCH --nodes=8
 #SBATCH --cpus-per-task=7
 #SBATCH --ntasks-per-node=8
@@ -9,7 +9,7 @@
 #SBATCH --gpus-per-node=mi250:8
 #SBATCH --exclusive=user
 #SBATCH --hint=nomultithread
-#SBATCH --account=project_462000319
+#SBATCH --account=project_462000615
 #SBATCH --output=logs/%j.out
 #SBATCH --error=logs/%j.err
 
@@ -44,7 +44,7 @@ TENSORBOARD_PATH="/scratch/project_462000353/villekom/logs/europa-production/ten
 
 
 # sets TRAIN_DATA and VALIDATION_DATA
-source $wd/europa_data.sh
+source $wd/europa_data_flash.sh
 MERGES=/scratch/project_462000353/europa-tokenizer/merges.txt
 VOCAB=/scratch/project_462000353/europa-tokenizer/vocab.json
 
@@ -56,15 +56,16 @@ VPP_SIZE=2
 
 MICRO_BATCH_SIZE=1
 
-GLOBAL_BATCH_SIZE=64
-NLAYERS=24
-NHIDDEN=2048
-NHEADS=16
-FFN_HIDDEN_SIZE=5504
-SEQ_LEN=2048
+GLOBAL_BATCH_SIZE=1024
+NLAYERS=56
+NHIDDEN=7168
+NHEADS=56
+FFN_HIDDEN_SIZE=20480
+SEQ_LEN=4096
 
 
-TOTAL_TOKENS=8_000_000_000
+TOTAL_TOKENS=3_000_000_000_000
+# TOTAL_TOKENS=3_000_000_000
 TOTAL_TOKENS=${TOTAL_TOKENS//_}    # drop "_" for bash math
 TRAIN_SAMPLES=$((TOTAL_TOKENS/SEQ_LEN))
 LR_DECAY_SAMPLES=$TRAIN_SAMPLES
@@ -122,26 +123,32 @@ GPT_ARGS=" \
     --disable-bias-linear \
     --init-method-std $INIT_METHOD_STD \
     --make-vocab-size-divisible-by 128 \
+    --no-gradient-accumulation-fusion \
     --normalization RMSNorm \
     --seed 42 \
     --untie-embeddings-and-output-weights \
-    --no-bias-dropout-fusion \
-    --no-masked-softmax-fusion \
-    --group-query-attention \
-    --num-query-groups $NUM_QUERY_GROUPS \
-    --no-query-key-layer-scaling
     --use-flash-attn \
     --swiglu \
     --attention-dropout 0 \
     --hidden-dropout 0 \
+    --no-query-key-layer-scaling \
     --attention-softmax-in-fp32 \
     --accumulate-allreduce-grads-in-fp32 \
     --use-rotary-position-embeddings \
+    --no-bias-dropout-fusion \
+    --no-masked-softmax-fusion \
+    --group-query-attention \
+    --num-query-groups $NUM_QUERY_GROUPS \
     --overlap-p2p-communication \
     --recompute-activations \
-    --no-gradient-accumulation-fusion \
     $OPTIMIZER_ARGS \
     "
+    # --overlap-grad-reduce \
+    # --standalone-embedding-stage \
+    # TODO this was a non-standard option after LUMI came back up, not sure why
+    # it was used.
+    #--data-cache-path data_cache/run1 \
+
 OUTPUT_ARGS=" \
     --save $CHECKPOINT_PATH \
     --log-interval $LOG_INTERVAL \
@@ -165,9 +172,6 @@ if (( VPP_SIZE > 1)); then
     --num-layers-per-virtual-pipeline-stage $VPP_SIZE"
 fi
 
-ZERO_STAGE=0
-
-
 
 CMD=" \
     pretrain_gpt.py \
@@ -189,7 +193,7 @@ export OMP_NUM_THREADS=1
 #export NCCL_DEBUG=INFO
 #export RCCL_KERNEL_COLL_TRACE_ENABLE=1
 #export NCCL_DEBUG_SUBSYS=INIT,COLL
-export HIP_LAUNCH_BLOCKING=1
+#export HIP_LAUNCH_BLOCKING=1
 
 c="fe"
 
@@ -197,7 +201,7 @@ c="fe"
 BIND_MASK_1="0x${c}000000000000,0x${c}00000000000000,0x${c}0000,0x${c}000000,0x${c},0x${c}00,0x${c}00000000,0x${c}0000000000"
 
 # Bind mask for two threads per core
-BIND_MASK_2="0x${c}00000000000000${c}000000000000,0x${c}00000000000000${c}00000000000000,0x${c}00000000000000${c}0000,0x${c}00000000000000${c}000000,0x${c}00000000000000${c},0x${c}00000000000000${c}00,0x${c}00000000000000${c}00000000,0x${c}00000000000000${c}0000000000"
+#BIND_MASK_2="0x${c}00000000000000${c}000000000000,0x${c}00000000000000${c}00000000000000,0x${c}00000000000000${c}0000,0x${c}00000000000000${c}000000,0x${c}00000000000000${c},0x${c}00000000000000${c}00,0x${c}00000000000000${c}00000000,0x${c}00000000000000${c}0000000000"
 
 BIND_MASK="$BIND_MASK_1"
 
@@ -209,7 +213,7 @@ echo "START $SLURM_JOBID: $(date)"
 #export cc=$(which cc)
 export CC=clang
 export CXX=clang++
-srun --label \
+srun --label --cpu-bind=mask_cpu:$BIND_MASK \
     singularity exec $SIF \
     conda-python-distributed $CMD
 
