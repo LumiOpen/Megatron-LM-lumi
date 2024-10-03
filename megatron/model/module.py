@@ -167,10 +167,10 @@ class Float16Module(MegatronModule):
             def float16_convertor(val):
                 return val.half()
         elif args.bf16:
-            print("Using custom hack to retain rotary pos emb in fp32")
+            # print("Using custom hack to retain rotary pos emb in fp32")
             converted_module = module.bfloat16()
             converted_module.language_model.rotary_pos_emb = rotary_pos_emb
-            print("converted_module.language_model.rotary_pos_emb.dtype: ", converted_module.language_model.rotary_pos_emb.inv_freq.dtype)
+            # print("converted_module.language_model.rotary_pos_emb.dtype: ", converted_module.language_model.rotary_pos_emb.inv_freq.dtype)
             self.add_module('module', converted_module)
             def float16_convertor(val):
                 return val.bfloat16()

@@ -1,26 +1,18 @@
 #!/bin/bash
 
-#SBATCH --job-name=v3-train-1024N-70B
-#SBATCH --nodes=1024
+#SBATCH --job-name=v3-english-only-70B
+#SBATCH --nodes=32
 #SBATCH --cpus-per-task=7
 #SBATCH --ntasks-per-node=8
-#SBATCH --mem=480G
+#SBATCH --mem=0
 #SBATCH --partition=standard-g
-#SBATCH --time=02-00:00:00
+#SBATCH --time=02:00:00
 #SBATCH --gpus-per-node=mi250:8
 #SBATCH --exclusive=user
 #SBATCH --hint=nomultithread
-#SBATCH --account=project_462000353
+#SBATCH --account=project_462000319
 #SBATCH --output=logs/%j.out
 #SBATCH --error=logs/%j.err
-#SBATCH --exclude=nid005002,nid005147,nid005150,nid005179,nid005180,nid005348,nid005383,nid005384,nid005513,nid005743,nid005868,nid006282,nid007058,nid007151,nid007249,nid007727,nid005574,nid006706,nid005797
-
-# if run without sbatch, invoke here
-if [ -z $SLURM_JOB_ID ]; then
-    mkdir -p logs
-    sbatch "$0"
-    exit
-fi
 
 mkdir -p workdir
 wd=$(realpath workdir)
@@ -28,24 +20,16 @@ wd=$(realpath workdir)
 timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
 mv logs/${SLURM_JOB_ID}.out logs/${SLURM_JOB_ID}-${timestamp}.out
 mv logs/${SLURM_JOB_ID}.err logs/${SLURM_JOB_ID}-${timestamp}.err
-
-# Check if this is a restared run and if so, print the failure events/reasons for failed nodes
-if [[ -v SLURM_RESTART_COUNT ]]
-then
-	failed_node=$(grep 'Node failure' logs/latest.err | awk '{print $NF}')
-	if [[ -z ${failed_node:+x} ]]
-	then
-		echo "RUN RESTARTED but no node failure logged"
-	else
-		failed_node="${failed_node//$'\n'/ }"
-		echo "RUN RESTARTED AFTER FAILURE OF NODE(s) $failed_node. Reason:"
-		sacctmgr show event where node="$failed_node" format="NodeName,TimeStart,TimeEnd,State,Reason%100"
-	fi
-fi
-
 # symlink logs/latest.out and logs/latest.err
-ln -f -s "${SLURM_JOB_ID}-${timestamp}.out" logs/latest_1024N.out
-ln -f -s "${SLURM_JOB_ID}-${timestamp}.err" logs/latest_1024N.err
+ln -f -s "${SLURM_JOB_ID}-${timestamp}.out" logs/latest.out
+ln -f -s "${SLURM_JOB_ID}-${timestamp}.err" logs/latest.err
+
+# if run without sbatch, invoke here
+if [ -z $SLURM_JOB_ID ]; then
+    mkdir -p logs
+    sbatch "$0"
+    exit
+fi
 
 # distributed setup
 export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
@@ -57,28 +41,27 @@ export CC=gcc-10
 export CXX=g++-10
 
 # singularity setup
-# Container with TCPStore patch.
-CONTAINER="/scratch/project_462000353/containers/flashattention_v2_new"
-SING_BIND="/flash/project_462000319,/scratch/project_462000086,/scratch/project_462000444,/scratch/project_462000353"
 
-# LR from LLaMa 2 70B.
-LEARNING_RATE=1.5e-4
-MIN_LR=1.5e-5
+CONTAINER="/scratch/project_462000319/containers/flashattention_v2_new"
+#CONTAINER=/appl/local/containers/sif-images/lumi-pytorch-rocm-5.6.1-python-3.10-pytorch-v2.2.0.sif
+#CONTAINER="/flash/project_462000424/singularity/container_out3.sif"
+SING_BIND="/scratch/project_462000319,/flash/project_462000319,/scratch/project_462000086,/scratch/project_462000444,/scratch/project_462000353"
+
+LEARNING_RATE=3.2e-4
 
 set -euo pipefail
 
-CHECKPOINT_PATH=/scratch/project_462000353/europa-checkpoints/1024N-lr-fixed
-TENSORBOARD_PATH="tensorboard/v3-train-lr-fixed.$SLURM_JOB_ID"
+CHECKPOINT_PATH=checkpoints
+TENSORBOARD_PATH="tensorboard/v3-debug-data-english-only.$SLURM_JOB_ID"
 
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 
 # sets TRAIN_DATA and VALIDATION_DATA
-source europa_data_flash.sh
+source europa_data_english_only.sh
 
-MERGES=/scratch/project_462000353/europa-tokenizer/merges.txt
-VOCAB=/scratch/project_462000353/europa-tokenizer/vocab.json
+MERGES=/flash/project_462000319/europa-tokenizer/merges.txt
+VOCAB=/flash/project_462000319/europa-tokenizer/vocab.json
 
-# These are from LLaMa 2, except for SEQ_LEN.
 NLAYERS=80
 NHIDDEN=8192
 NHEADS=64
@@ -87,36 +70,37 @@ SEQ_LEN=5120
 
 MICRO_BATCH_SIZE=1
 
-# Global batch size in tokens ~5.25M. This is 25% more than LLaMa 2 due to larger SEQ_LEN.
-GLOBAL_BATCH_SIZE=1024
+# Global batch size in tokens ~5.25M
+GLOBAL_BATCH_SIZE=$((SLURM_JOB_NUM_NODES * 2))
 
-# Experimentally optimized for LUMI and 71B params.
 PP_SIZE=8
 TP_SIZE=8
 VPP_SIZE=2
+
+# export MEMORY_OPT_ALLREDUCE_SIZE=150000000
+# echo "MEMORY_OPT_ALLREDUCE_SIZE $MEMORY_OPT_ALLREDUCE_SIZE"
 
 TOTAL_TOKENS=3_000_000_000_000
 TOTAL_TOKENS=${TOTAL_TOKENS//_}    # drop "_" for bash math
 TRAIN_SAMPLES=$((TOTAL_TOKENS/SEQ_LEN))
 LR_DECAY_SAMPLES=$TRAIN_SAMPLES
-# 2000 steps from LLaMa 2.
+# LR_WARMUP_SAMPLES=2000
 LR_WARMUP_SAMPLES=$((2000*GLOBAL_BATCH_SIZE))
-# Also from LLaMa 2.
+# I'm setting this to:
 NUM_QUERY_GROUPS=8
 
 LOG_INTERVAL=1
-SAVE_INTERVAL=500
+SAVE_INTERVAL=1000
 EVAL_INTERVAL=4000
 EVAL_STEPS=100
 
-# These are the same as LLaMa 2.
 OPTIMIZER_ARGS=" \
     --optimizer adam \
     --adam-beta1 0.9 \
     --adam-beta2 0.95 \
     --adam-eps 1e-5 \
     --lr $LEARNING_RATE \
-    --min-lr $MIN_LR \
+    --min-lr 3e-5 \
     --lr-decay-style cosine \
     --lr-decay-samples $LR_DECAY_SAMPLES \
     --lr-warmup-samples $LR_WARMUP_SAMPLES \
@@ -124,11 +108,7 @@ OPTIMIZER_ARGS=" \
     --weight-decay 1e-1 \
     --use-distributed-optimizer"
 
-# sqrt(2/(NHIDDEN*5)), from https://github.com/bigscience-workshop/bigscience/blob/master/train/lessons-learned.md
-INIT_METHOD_STD=0.007
 
-# These arguments are from LLaMa 2.
-# Our code has a hard-coded fix for bf16 where RoPE inverse frequency uses fp32.
 GPT_ARGS=" \
     --num-layers $NLAYERS \
     --hidden-size $NHIDDEN \
@@ -144,7 +124,7 @@ GPT_ARGS=" \
     --merge-file $MERGES \
     --bf16 \
     --disable-bias-linear \
-    --init-method-std $INIT_METHOD_STD \
+    --init-method-std 0.0048 \
     --make-vocab-size-divisible-by 128 \
     --no-gradient-accumulation-fusion \
     --normalization RMSNorm \
@@ -155,20 +135,17 @@ GPT_ARGS=" \
     --attention-dropout 0 \
     --hidden-dropout 0 \
     --no-query-key-layer-scaling \
-    --attention-softmax-in-fp32 \
-    --accumulate-allreduce-grads-in-fp32 \
     --use-rotary-position-embeddings \
     --no-bias-dropout-fusion \
-    --no-masked-softmax-fusion \
     --group-query-attention \
     --num-query-groups $NUM_QUERY_GROUPS \
-    --recompute-activations \
     $OPTIMIZER_ARGS \
     "
+#    --no-async-tensor-model-parallel-allreduce \
+
+
 
 OUTPUT_ARGS=" \
-    --save $CHECKPOINT_PATH \
-    --load $CHECKPOINT_PATH \
     --log-interval $LOG_INTERVAL \
     --save-interval $SAVE_INTERVAL \
     --eval-interval $EVAL_INTERVAL \
@@ -199,7 +176,8 @@ CMD=" \
     --train-data-path $TRAIN_DATA \
     --valid-data-path $VALIDATION_DATA \
     --dataloader-type single \
-    --num-workers 0 \
+    --num-workers 1 \
+    --recompute-activations \
     --distributed-timeout-minutes 60 \
     "
 

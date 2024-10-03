@@ -1,19 +1,18 @@
 #!/bin/bash
 
-#SBATCH --job-name=v3-train-1024N-70B
-#SBATCH --nodes=1024
+#SBATCH --job-name=v3-flash-test
+#SBATCH --nodes=16
 #SBATCH --cpus-per-task=7
 #SBATCH --ntasks-per-node=8
 #SBATCH --mem=480G
-#SBATCH --partition=standard-g
-#SBATCH --time=02-00:00:00
+#SBATCH --partition=dev-g
+#SBATCH --time=00-01:00:00
 #SBATCH --gpus-per-node=mi250:8
 #SBATCH --exclusive=user
 #SBATCH --hint=nomultithread
 #SBATCH --account=project_462000353
 #SBATCH --output=logs/%j.out
 #SBATCH --error=logs/%j.err
-#SBATCH --exclude=nid005002,nid005147,nid005150,nid005179,nid005180,nid005348,nid005383,nid005384,nid005513,nid005743,nid005868,nid006282,nid007058,nid007151,nid007249,nid007727,nid005574,nid006706,nid005797
 
 # if run without sbatch, invoke here
 if [ -z $SLURM_JOB_ID ]; then
@@ -44,8 +43,8 @@ then
 fi
 
 # symlink logs/latest.out and logs/latest.err
-ln -f -s "${SLURM_JOB_ID}-${timestamp}.out" logs/latest_1024N.out
-ln -f -s "${SLURM_JOB_ID}-${timestamp}.err" logs/latest_1024N.err
+ln -f -s "${SLURM_JOB_ID}-${timestamp}.out" logs/latest.out
+ln -f -s "${SLURM_JOB_ID}-${timestamp}.err" logs/latest.err
 
 # distributed setup
 export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
@@ -59,7 +58,7 @@ export CXX=g++-10
 # singularity setup
 # Container with TCPStore patch.
 CONTAINER="/scratch/project_462000353/containers/flashattention_v2_new"
-SING_BIND="/flash/project_462000319,/scratch/project_462000086,/scratch/project_462000444,/scratch/project_462000353"
+SING_BIND="/scratch/project_462000086,/scratch/project_462000444,/scratch/project_462000353,/flash/project_462000319"
 
 # LR from LLaMa 2 70B.
 LEARNING_RATE=1.5e-4
@@ -67,8 +66,8 @@ MIN_LR=1.5e-5
 
 set -euo pipefail
 
-CHECKPOINT_PATH=/scratch/project_462000353/europa-checkpoints/1024N-lr-fixed
-TENSORBOARD_PATH="tensorboard/v3-train-lr-fixed.$SLURM_JOB_ID"
+CHECKPOINT_PATH=checkpoints
+TENSORBOARD_PATH="tensorboard/v3-restart-test.$SLURM_JOB_ID"
 
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 
@@ -165,6 +164,9 @@ GPT_ARGS=" \
     --recompute-activations \
     $OPTIMIZER_ARGS \
     "
+#    --attention-softmax-in-fp32 \
+#    --accumulate-allreduce-grads-in-fp32 \
+
 
 OUTPUT_ARGS=" \
     --save $CHECKPOINT_PATH \

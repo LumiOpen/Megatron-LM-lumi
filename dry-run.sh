@@ -1,19 +1,18 @@
 #!/bin/bash
 
-#SBATCH --job-name=worker0
-#SBATCH --nodes=16
+#SBATCH --job-name=dry-run
+#SBATCH --nodes=512
 #SBATCH --cpus-per-task=7
 #SBATCH --ntasks-per-node=8
 #SBATCH --mem=0
-#SBATCH --partition=dev-g
-#SBATCH --time=00-02:00:00
+#SBATCH --partition=standard-g
+#SBATCH --time=00-2:00:00
 #SBATCH --gpus-per-node=mi250:8
 #SBATCH --exclusive=user
 #SBATCH --hint=nomultithread
-#SBATCH --account=project_462000353
+#SBATCH --account=project_462000319
 #SBATCH --output=logs/%j.out
 #SBATCH --error=logs/%j.err
-#SBATCH --exclude=nid005003,nid007971,nid007972
 
 mkdir -p workdir
 wd=$(realpath workdir)
@@ -28,7 +27,7 @@ fi
 
 # distributed setup
 export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
-export MASTER_PORT=9999
+export MASTER_PORT=9696
 export WORLD_SIZE=$SLURM_NTASKS
 
 # compilers in the container
@@ -38,12 +37,14 @@ export CXX=g++-10
 # singularity setup
 
 #CONTAINER="/scratch/project_462000319/containers/vaino_flashattention_v2_new"
-CONTAINER="/flash/project_462000424/singularity/flashattention_new"
+CONTAINER="/scratch/project_462000319/containers/flashattention_v2_new"
+# CONTAINER="/flash/project_462000424/singularity/flashattention_new"
+# CONTAINER=/appl/local/containers/sif-images/lumi-pytorch-rocm-5.6.1-python-3.10-pytorch-v2.2.0.sif
 # CONTAINER="/flash/project_462000424/singularity/container_out3.sif"
 # CONTAINER="/scratch/project_462000319/rluukkon/singularity/flash-attn-test-2_pems_v2.sif"
-SING_BIND="/scratch/project_462000319,/flash/project_462000319,/scratch/project_462000086"
+SING_BIND="/scratch/project_462000319,/flash/project_462000319,/scratch/project_462000086, /scratch/project_462000319, /scratch/project_462000444"
 
-LEARNING_RATE=3e-4
+LEARNING_RATE=3.2e-4
 
 set -euo pipefail
 
@@ -58,14 +59,10 @@ TENSORBOARD_PATH="tensorboard/70B_test.$SLURM_JOB_ID"
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 
 # TRAIN_DATA="1.0 /scratch/project_462000319/rluukkon/Megatron-DeepSpeed-dev/dataset/parsebank-combined.dedup.filtered.jsonl-with-reg-scores-MT-filtered_text_document"
-TRAIN_DATA="0.5415810341 /flash/project_462000319/megatron-preprocessed-data/train/merged_slimpajama 0.1304808053 /flash/project_462000319/megatron-preprocessed-data/train/merged_finnish 0.004023063515 /flash/project_462000319/megatron-preprocessed-data/train/tatoeba-train.en-fi.jsonl_text_document 0.004016818638 /flash/project_462000319/megatron-preprocessed-data/train/tatoeba-train.fi-en.jsonl_text_document 0.3153543717 /flash/project_462000319/megatron-preprocessed-data/train/starcoder-merged 0.004543906834 /flash/project_462000319/megatron-preprocessed-data/train/train-books_text_document"
-VALIDATION_DATA="0.5415810341 /flash/project_462000319/megatron-preprocessed-data/eval/slim-pajama-validation_text_document 0.1304808053 /flash/project_462000319/megatron-preprocessed-data/eval/finnish_eval_text_document 0.004023063515 /flash/project_462000319/megatron-preprocessed-data/eval/tatoeba-eval.en-fi_text_document 0.004016818638 /flash/project_462000319/megatron-preprocessed-data/eval/tatoeba-eval.fi-en_text_document 0.3153543717 /flash/project_462000319/megatron-preprocessed-data/eval/starcoder-eval_content_document 0.004543906834 /flash/project_462000319/megatron-preprocessed-data/eval/eval-books.json_text_document"
-# MERGES=/scratch/project_462000319/tokenizers/nordic_tokenizer_131072/merges.txt
-# VOCAB=/scratch/project_462000319/tokenizers/nordic_tokenizer_131072/vocab.json
-MERGES=/scratch/project_462000319/tokenizers/_obsolete/fin_10GB_333_tokenizer_v3_256k/merges.txt
-VOCAB=/scratch/project_462000319/tokenizers/_obsolete/fin_10GB_333_tokenizer_v3_256k/vocab.json
-# NLAYERS=96
-# FFN_HIDDEN_SIZE=24576
+# TRAIN_DATA="0.5415810341 /flash/project_462000319/megatron-preprocessed-data/train/merged_slimpajama 0.1304808053 /flash/project_462000319/megatron-preprocessed-data/train/merged_finnish 0.004023063515 /flash/project_462000319/megatron-preprocessed-data/train/tatoeba-train.en-fi.jsonl_text_document 0.004016818638 /flash/project_462000319/megatron-preprocessed-data/train/tatoeba-train.fi-en.jsonl_text_document 0.3153543717 /flash/project_462000319/megatron-preprocessed-data/train/starcoder-merged 0.004543906834 /flash/project_462000319/megatron-preprocessed-data/train/train-books_text_document"
+TRAIN_DATA="0.012220654049506422 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/bg 0.00000000893642498948022 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/bs 0.015704810090048035 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/cs 0.005879219445253446 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/da 0.0749165891937554 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/de 0.02385499073085216 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/el 0.07485718390796112 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/es 0.0020968659520771986 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/et 0.008307970809589553 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/fi 0.05930487990031307 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/fr 9.214295873758325e-05 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/ga 8.498065015073429e-06 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/hr 0.012782696858900723 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/hu 0.0005632749185839986 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/is 0.03226913742821717 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/it 0.0035280451932835953 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/lt 0.0018795012112274479 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/lv 7.824566038848572e-05 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/mt 0.020478931092056618 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/nl 0.0035070388972673135 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/no 0.03552524084530773 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/pl 0.04673079230392011 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/pt 0.011512624658058676 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/ro 0.004376074293091748 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/sk 0.0019682708195598647 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/sl 0.0017946031026425634 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/sr 0.01055164159101632 /scratch/project_462000444/europa/tokenized-data/dry-run/merged/sv"
+MERGES=/scratch/project_462000319/tokenizers/nordic_tokenizer_131072/merges.txt
+VOCAB=/scratch/project_462000319/tokenizers/nordic_tokenizer_131072/vocab.json
 
 NLAYERS=80
 NHIDDEN=8192
@@ -73,10 +70,8 @@ NHEADS=64
 FFN_HIDDEN_SIZE=28672
 SEQ_LEN=5120
 
-
 MICRO_BATCH_SIZE=1
-SEQ_LEN=5120
-GLOBAL_BATCH_SIZE=$((SLURM_JOB_NUM_NODES * 4))
+GLOBAL_BATCH_SIZE=$((SLURM_JOB_NUM_NODES * 2))
 
 PP_SIZE=8
 TP_SIZE=8
@@ -92,11 +87,11 @@ LR_DECAY_SAMPLES=$TRAIN_SAMPLES
 LR_WARMUP_SAMPLES=$((TRAIN_SAMPLES/100))
 
 NUM_QUERY_GROUPS=8
+
 LOG_INTERVAL=1
 SAVE_INTERVAL=1000
 EVAL_INTERVAL=4000
 EVAL_STEPS=100
-
 OPTIMIZER_ARGS=" \
     --optimizer adam \
     --adam-beta1 0.9 \
@@ -141,15 +136,15 @@ GPT_ARGS=" \
     --use-flash-attn \
     --swiglu \
     --attention-dropout 0 \
-    --position-embedding-type rope \
     --hidden-dropout 0 \
     --no-query-key-layer-scaling \
+    --use-rotary-position-embeddings \
     --no-bias-dropout-fusion \
     --group-query-attention \
     --num-query-groups $NUM_QUERY_GROUPS \
+    --distributed-timeout-minutes 30 \
     $OPTIMIZER_ARGS \
     "
-    # --use-rotary-position-embeddings \
 #    --no-async-tensor-model-parallel-allreduce \
 
 
@@ -224,18 +219,14 @@ CMD=" \
     $GPT_ARGS \
     $PARALLEL_ARGS \
     $OUTPUT_ARGS \
-    --train-data-path $TRAIN_DATA \
-    --valid-data-path $VALIDATION_DATA \
+    --data-path $TRAIN_DATA \
     --dataloader-type single \
-    --num-workers 0 \
+    --num-workers 1 \
     --recompute-activations \
     "
-    # --recompute-granularity full \
-    # --recompute-method block \
-    # --recompute-num-layers 2 \
-    
     # --profile \
     # --profile-step-end 20 \
+    
 if [ $DEEPSPEED = true ]; then
     CMD="$CMD \
     $DEEPSPEED_ARGS"
@@ -269,8 +260,8 @@ if [ ! -d "$wd"/cray-deps ] ; then
   rm -rf "$wd"/cray-deps
   mkdir "$wd"/cray-deps
   cp /usr/lib64/libcxi* $wd/cray-deps
-
 fi
+
 # srun \
 #     --label \
 #     singularity exec \

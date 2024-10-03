@@ -26,12 +26,15 @@ mkdir -p $TORCH_EXTENSIONS_DIR
 
 # debugging (noisy)
 export NCCL_DEBUG=WARN
+if [ $SLURM_PROCID -eq 0 ]; then
+    export NCCL_DEBUG=INFO
+fi
 export RCCL_KERNEL_COLL_TRACE_ENABLE=1 
 export NCCL_DEBUG_SUBSYS=INIT,COLL
 
 export RANK=$SLURM_PROCID
 export LOCAL_RANK=$SLURM_LOCALID
-echo 'Set PYTORCH_HIP_ALLOC_CONF='max_split_size_mb:512''
+#echo 'Set PYTORCH_HIP_ALLOC_CONF='max_split_size_mb:512''
 export PYTORCH_HIP_ALLOC_CONF='max_split_size_mb:512'
 
 echo "Launching on $SLURMD_NODENAME ($SLURM_PROCID/$SLURM_JOB_NUM_NODES)," \

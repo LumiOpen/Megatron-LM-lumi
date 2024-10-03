@@ -20,6 +20,7 @@ MEGLM_LOSS_RE = re.compile(r'.*?\biteration\s+(\d+).*\blm loss:\s+(\S+).*')
 
 def argparser():
     ap = ArgumentParser()
+    ap.add_argument('--tokens-per-step', type=int, default=None)
     ap.add_argument('--modulo', type=int, default=None)
     ap.add_argument('logs', nargs='+')
     return ap
@@ -72,6 +73,12 @@ def main(argv):
     if not values:
         warning('no values found')
         return 1
+
+    if args.tokens_per_step is not None:
+        values = {
+            i: (i*args.tokens_per_step, l)
+            for i, (_, l) in values.items()
+        }
 
     print('iteration\ttokens\tloss')
     for it in sorted(values):

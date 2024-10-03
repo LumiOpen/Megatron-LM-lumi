@@ -1049,6 +1049,15 @@ def build_train_valid_test_data_loaders(
         flags = torch.cuda.LongTensor([0, 0, 0])
 
     # Broadcast num tokens.
+    print(' > flags before broadcast: {}'.format(flags), flush=True)
+    print(" > tensor model parallel src rank: {}".format(
+        mpu.get_tensor_model_parallel_src_rank()), flush=True)
+    print(" > tensor model parallel group: {}".format(
+        mpu.get_tensor_model_parallel_group()), flush=True)
+#     print("Waiting at barrier", flush=True)
+
+# #    torch.distributed.barrier()
+#     print("Passed barrier", flush=True)
     torch.distributed.broadcast(flags,
                                 mpu.get_tensor_model_parallel_src_rank(),
                                 group=mpu.get_tensor_model_parallel_group())
