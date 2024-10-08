@@ -575,6 +575,8 @@ def _add_network_size_args(parser):
                        'Deprecated: use --position-embedding-type')
     group.add_argument('--rotary-percent', type=float, default=1.0,
                        help='Percent of rotary dimension to use, default 100%%')
+    group.add_argument('--use-rope-scaling', action='store_true',
+                       help='Apply rope scaling as used in llama3.1')
     group.add_argument('--rotary-seq-len-interpolation-factor', type=int, default=None,
                        help='Sequence length interpolation factor for rotary embeddings.')
     group.add_argument('--no-position-embedding',
@@ -1119,7 +1121,6 @@ def _add_data_args(parser):
                        'dataset2-path ...')
     group.add_argument('--data-cache-path', default=None,
                        help='Path to a directory to hold cached index files.')
-
     group.add_argument('--vocab-size', type=int, default=None,
                        help='Size of vocab before EOD or padding.')
     group.add_argument('--vocab-file', type=str, default=None,
@@ -1164,7 +1165,6 @@ def _add_data_args(parser):
     
     group.add_argument('--hf_tokenizer_path', type=str, default=None,
                        help='HuggingFace pretrained tokenizer model.')
-
     group.add_argument('--tokenizer-model', type=str, default=None,
                        help='Sentencepiece tokenizer model.')
     group.add_argument('--reset-position-ids', action='store_true',
