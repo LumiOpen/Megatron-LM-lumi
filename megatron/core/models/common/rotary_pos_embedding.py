@@ -1,7 +1,7 @@
 # Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 
 import importlib.util
-
+import math 
 import torch
 from torch import einsum, nn
 
@@ -12,7 +12,6 @@ class RotaryEmbedding(nn.Module):
     def __init__(self, dim, theta,rope_scaling: bool = False, seq_len_interpolation_factor=None):
         super().__init__()
         self.theta = theta
-        print("rope theta", self.theta)
         self.seq_len_interpolation_factor = seq_len_interpolation_factor
         inv_freq = 1.0 / (self.theta ** (torch.arange(0, dim, 2).float() / dim))
         if rope_scaling:
