@@ -11,8 +11,6 @@ CHECK_EQUAL_WITH_HF = '' # A pretrain directory eg. '/data/models/llama-2-hf/7b-
 
 def add_arguments(parser):
     group = parser.add_argument_group(title='Llama-2 HF saver.')
-    group.add_argument('--megatron-path', type=str, default=None,
-                       help='Base directory of megatron checkpoint')
     group.add_argument('--tokenizer-dir', type=str, required=True)
     group.add_argument('--save-dtype', choices=['fp32', 'bf16', 'fp16'], default='bf16',
                        help='Save model in which dtype')
