@@ -53,6 +53,7 @@ def _load_checkpoint(queue, args):
                 '--no-save-optim',
                 '--no-save-rng',
                 '--no-initialization',
+                '--no-gradient-accumulation-fusion',
                 '--load', args.load_dir
                 ]
 
