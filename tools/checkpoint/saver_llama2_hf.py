@@ -119,6 +119,11 @@ def save_checkpoint(queue: mp.Queue, args):
             qkv_weight = qkv_weight.transpose(0, 1).reshape(3, hf_config.hidden_size, hf_config.hidden_size)
             query_layer, key_layer, value_layer = qkv_weight.chunk(3)
         
+        # squeeze out the potential extra dimension
+        query_layer = query_layer.squeeze(0)
+        key_layer = key_layer.squeeze(0)
+        value_layer = value_layer.squeeze(0)
+        
         set_hf_param(suffix + 'self_attn.q_proj', query_layer)
         set_hf_param(suffix + 'self_attn.k_proj', key_layer)
         set_hf_param(suffix + 'self_attn.v_proj', value_layer)
@@ -135,6 +140,7 @@ def save_checkpoint(queue: mp.Queue, args):
         for key in state_dict:
             assert torch.equal(ref_state_dict[key], state_dict[key])
         print(f'Check passed. {CHECK_EQUAL_WITH_HF} and {args.save_dir} are equal.')
-    print("Starting to write on disk")
+    
+    print("Starting to write on disk to", args.save_dir)
     torch.save(state_dict, os.path.join(args.save_dir, 'pytorch_model.bin'))
     print("Finished saving model on disk")
