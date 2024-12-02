@@ -19,7 +19,7 @@ if [ -z "$1" ]
     exit 1
 fi
 CHECKPOINT_PATH=$1
-OUTPUT_ROOT="/scratch/project_462000353/risto/europa/converted_models"
+OUTPUT_ROOT="/scratch/project_462000353/converted-checkpoints"
 OUTPUT_DIR=$OUTPUT_ROOT/europa_7B_$(basename ${CHECKPOINT_PATH})_bfloat16
 TOKENIZER=/scratch/project_462000353/europa-tokenizer
 
