@@ -45,7 +45,7 @@ def load_args_from_checkpoint(args):
     args.num_layers = llama_args["num_hidden_layers"]
     args.global_batch_size = 1024
     args.norm_epsilon = llama_args["rms_norm_eps"]
-
+    args.rope_theta = llama_args["rope_theta"]
     # args.iteration = 1 # '0', 'release' don't work
     args.add_position_embedding = False
     args.use_rotary_position_embeddings = True
