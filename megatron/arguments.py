@@ -437,7 +437,7 @@ def core_transformer_config_from_args(args):
         kw_args['num_query_groups'] = args.num_query_groups
     else:
         kw_args['num_query_groups'] = None
-
+    
     return TransformerConfig(**kw_args)
 
 def _add_transformer_engine_args(parser):
@@ -587,6 +587,9 @@ def _add_network_size_args(parser):
     group.add_argument('--normalization', default='LayerNorm',
                        choices=['LayerNorm', 'RMSNorm'],
                        help='Which normalization technique to use.')
+    group.add_argument('--use-attention-kv-norm', action='store_true',
+                       help='Olmo-2-style normalization in attention after fused linear transformation '
+                       'applied for keys and values in each attention block')
     group.add_argument('--norm-epsilon', type=float, default=1e-5,
                        help='Epsilon for layer norm and RMS norm.')
     group.add_argument('--apply-layernorm-1p', action='store_true',

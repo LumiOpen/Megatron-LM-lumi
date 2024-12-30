@@ -181,6 +181,7 @@ class TransformerConfig(ModelParallelConfig):
     fp8_wgrad: bool = True
 
     # experimental section (TODO: move to apt. section above once stable)
+    use_attention_kv_norm: bool = False # use Olmo-2-like attention kv-normalization
     normalization: bool = "LayerNorm"  # alt value supported by TE: "RMSNorm"
 
     def __post_init__(self):
