@@ -162,7 +162,10 @@ def main():
     
     # symlink the load_dir to a temporary directory if provided specific checkpoint path
     # and write the iteration number to a file
-    ckpt_iter = re.search(r'iter_(\d+)', [iter_string for iter_string in known_args.load_dir.split('/') if 'iter_' in iter_string][-1])
+    try:
+        ckpt_iter = re.search(r'iter_(\d+)', [iter_string for iter_string in known_args.load_dir.split('/') if 'iter_' in iter_string][-1])
+    except:
+        ckpt_iter = None
 
     if ckpt_iter:
         try:
@@ -181,6 +184,7 @@ def main():
             print("Deleting temporary directory and exiting...")
             safe_remove_directory(tmp_dir_path)
             sys.exit(1)
+    
 
     loader = load_plugin('loader', known_args.loader)
     saver = load_plugin('saver', known_args.saver)

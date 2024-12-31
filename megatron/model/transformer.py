@@ -510,7 +510,7 @@ class ParallelAttention(MegatronModule):
         self.use_attention_kv_norm = config.use_attention_kv_norm
         if self.use_attention_kv_norm:
             self.q_norm = get_norm(config)
-            self.v_norm = get_norm(config)
+            self.k_norm = get_norm(config)
 
         self.group_query_attention = args.group_query_attention
         self.num_query_groups = args.num_query_groups
@@ -782,10 +782,24 @@ class ParallelAttention(MegatronModule):
         )
         
         # olmo-like normalization
-        print("Q and V dims:", query_layer.shape, key_layer.shape)
         if self.use_attention_kv_norm:
-            query_layer = self.q_norm(query_layer)
-            key_layer = self.k_norm(key_layer)
+            
+            query_shape = query_layer.shape
+            key_shape = key_layer.shape
+
+            query_layer = self.q_norm(
+                query_layer.contiguous().view(
+                    self.num_attention_heads_per_partition * self.hidden_size_per_attention_head, query_shape[0]
+                    )
+                )
+            key_layer = self.k_norm(
+                key_layer.contiguous().view(
+                    self.num_attention_heads_per_partition * self.hidden_size_per_attention_head, key_shape[0]
+                    )
+                )
+            
+            query_layer = query_layer.view(query_shape)
+            key_layer = key_layer.view(key_shape)
 
         # apply relative positional encoding (rotary embedding)
         if rotary_pos_emb is not None:
@@ -1197,7 +1211,6 @@ class ParallelTransformerLayer(MegatronModule):
             norm_input = residual + self.drop_path(out)
 
         # Layer norm post the self attention.
-        print("post_attention_norm shape", norm_input.shape)
         norm_output = self.post_attention_norm(norm_input)
 
         # Cross attention.
