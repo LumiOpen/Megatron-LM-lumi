@@ -27,5 +27,8 @@ class RMSNorm(torch.nn.Module):
         return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
 
     def forward(self, x):
+        print("x.shape:", x.shape)
         output = self._norm(x.float()).type_as(x)
+        print("output.shape", output.shape)
+        print("self.weight.shape", self.weight.shape)
         return output * self.weight

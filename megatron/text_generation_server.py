@@ -67,7 +67,7 @@ class MegatronGenerate(Resource):
         if tokens_to_generate == 0 and not logprobs:
             return "tokens_to_generate=0 implies logprobs should be True"
         
-        temperature = 1.0
+        temperature = 0.0
         if "temperature" in request.get_json():
             temperature = request.get_json()["temperature"]
             if not (type(temperature) == int or type(temperature) == float):
@@ -75,7 +75,7 @@ class MegatronGenerate(Resource):
             if not (0.0 < temperature <= 100.0):
                 return "temperature must be a positive number less than or equal to 100.0"
         
-        top_k = 0.0
+        top_k = 1.0
         if "top_k" in request.get_json():
             top_k = request.get_json()["top_k"]
             if not (type(top_k) == int):

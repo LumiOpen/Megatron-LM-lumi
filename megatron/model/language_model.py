@@ -77,7 +77,7 @@ def get_language_model(config, num_tokentypes, add_pooler,
     )
     # key used for checkpoints.
     language_model_key = 'language_model'
-
+    print(language_model)
     return language_model, language_model_key
 
 
@@ -212,6 +212,7 @@ class Embedding(MegatronModule):
     def forward(self, input_ids, position_ids, tokentype_ids=None):
         # Embeddings.
         words_embeddings = self.word_embeddings(input_ids)
+        torch.save(words_embeddings, "meg_word_embeddings.pt")
         if self.add_position_embedding:
             position_embeddings = self.position_embeddings(position_ids)
             embeddings = words_embeddings + position_embeddings
@@ -392,7 +393,7 @@ class TransformerLanguageModel(MegatronModule):
             self._encoder_key = 'encoder'
         else:
             self.encoder = None
-
+        
         # Decoder (usually set to False, True if part of an encoder-decoder
         # architecture and in decoder-only stage).
         if self.add_decoder:

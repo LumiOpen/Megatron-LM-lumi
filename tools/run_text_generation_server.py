@@ -26,7 +26,7 @@ def model_provider(pre_process=True, post_process=True):
 
     print_rank_0('building GPT model ...')
     model = GPTModel(config, num_tokentypes=0, parallel_output=False, pre_process=pre_process, post_process=post_process)
-
+    print(model.language_model.encoder.layers[0].self_attention.query_key_value.weight.shape)
     return model
 
 

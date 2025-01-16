@@ -266,10 +266,13 @@ def save_checkpoint(queue, args):
             msg = queue_get(f"transformer layer {total_layer_num}")
 
             # duplicated tensors
-            input_norm_weight = msg.pop("input norm weight")
+            if not md.use_attention_kv_norm:
+                input_norm_weight = msg.pop("input norm weight")
             if md.norm_has_bias:
                 input_norm_bias = msg.pop("input norm bias")
             post_norm_weight = msg.pop("post norm weight")
+            if md.post_feedforward_norm:
+                post_feedforward_norm_weight = msg.pop("post ff norm weight")
             if md.norm_has_bias:
                 post_norm_bias = msg.pop("post norm bias")
             if md.linear_bias:
@@ -278,6 +281,10 @@ def save_checkpoint(queue, args):
 
             # Split up the parallel tensors
             qkv_weight = torch.chunk(msg.pop("qkv weight"), args.target_tensor_parallel_size, dim=0)
+            if md.use_attention_kv_norm:
+                q_norm_weight = torch.chunk(msg.pop("q_norm weight"), args.target_tensor_parallel_size, dim=0) 
+                k_norm_weight = torch.chunk(msg.pop("k_norm weight"), args.target_tensor_parallel_size, dim=0)
+
             dense_weight = torch.chunk(msg.pop("dense weight"), args.target_tensor_parallel_size, dim=1)
             mlp_l1_weight = torch.chunk(msg.pop("mlp l1 weight"), args.target_tensor_parallel_size, dim=1)
 
@@ -301,12 +308,17 @@ def save_checkpoint(queue, args):
             # Save them to the model
             for tp_rank in range(args.target_tensor_parallel_size):
                 l = models[tp_rank].language_model.encoder.layers[layer]
-                l.input_norm.weight.data.copy_(input_norm_weight)
+                if not md.use_attention_kv_norm:
+                    l.input_norm.weight.data.copy_(input_norm_weight)
                 if md.norm_has_bias:
                     l.input_norm.bias.data.copy_(input_norm_bias)
                 l.self_attention.query_key_value.weight.data.copy_(qkv_weight[tp_rank])
                 l.self_attention.dense.weight.data.copy_(dense_weight[tp_rank])
                 l.post_attention_norm.weight.data.copy_(post_norm_weight)
+                l.post_feedforward_norm.weight.data.copy_(post_feedforward_norm_weight)
+                if md.use_attention_kv_norm:
+                    l.self_attention.q_norm.weight.data.copy_(q_norm_weight[tp_rank])
+                    l.self_attention.k_norm.weight.data.copy_(k_norm_weight[tp_rank])
                 if md.norm_has_bias:
                     l.post_attention_norm.bias.data.copy_(post_norm_bias)
                 l.mlp.dense_h_to_4h.weight.data.copy_(mlp_l0_weight[tp_rank])
