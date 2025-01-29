@@ -307,7 +307,8 @@ class _HFTokenizer:
     
     @property
     def vocab_size(self):
-        return self.tokenizer.vocab_size
+        vocab_size = len(self.tokenizer.get_vocab())
+        return vocab_size
     def tokenize(self, text):
         return self.tokenizer.encode(text)
     def detokenize(self, ids):
