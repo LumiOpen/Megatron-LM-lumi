@@ -14,7 +14,6 @@ class OptimizerParamScheduler(object):
                  start_wd, end_wd, wd_incr_steps, wd_incr_style,
                  use_checkpoint_opt_param_scheduler=True,
                  override_opt_param_scheduler=False):
-
         # Class values.
         self.optimizer = optimizer
 
@@ -29,9 +28,10 @@ class OptimizerParamScheduler(object):
         self.num_steps = 0
         self.lr_decay_steps = lr_decay_steps
         assert self.lr_decay_steps > 0
-        assert self.lr_warmup_steps < self.lr_decay_steps
-
         self.lr_decay_style = lr_decay_style
+        if self.lr_decay_style != 'trapezoid':
+            assert self.lr_warmup_steps < self.lr_decay_steps
+
 
         self.start_wd = start_wd
         self.end_wd = end_wd
@@ -90,11 +90,30 @@ class OptimizerParamScheduler(object):
                     / float(self.lr_warmup_steps)
                 )
             )
-
+        
         # If the learning rate is constant, just return the initial value.
         if self.lr_decay_style == 'constant':
             return self.max_lr
-
+        
+        # keeps max_lr for total_steps - lr_decay_steps steps, then decays to min_lr
+        if self.lr_decay_style == 'trapezoid':
+            # using wd_incr_steps as the total number of steps
+            
+            total_steps = self.wd_incr_steps
+            num_constant_steps = total_steps - self.lr_decay_steps
+            
+            assert total_steps > self.lr_decay_steps
+            assert self.lr_warmup_steps+self.lr_decay_steps <= total_steps
+            
+            if self.num_steps <= num_constant_steps:
+                return self.max_lr 
+            else:
+                # linearly decay to min_lr
+                cur_decay_step = self.num_steps - num_constant_steps
+                coeff = (1.0 - cur_decay_step / self.lr_decay_steps)
+                delta_lr = self.max_lr - self.min_lr
+                return self.min_lr + coeff * delta_lr
+            
         # For any steps larger than `self.lr_decay_steps`, use `self.min_lr`.
         if self.num_steps > self.lr_decay_steps:
             return self.min_lr
@@ -226,10 +245,3 @@ class OptimizerParamScheduler(object):
                                                 sd['wd_incr_style'],
                                                 "weight decay incr style")
             
-
-
-
-
-
-
-
