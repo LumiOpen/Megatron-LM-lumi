@@ -14,6 +14,8 @@ def add_arguments(parser):
     group.add_argument('--tokenizer-dir', type=str, required=True)
     group.add_argument('--save-dtype', choices=['fp32', 'bf16', 'fp16'], default='bf16',
                        help='Save model in which dtype')
+    group.add_argument('--eos_token_id', type=int, default=None)
+    group.add_argument('--bos_token_id', type=int, default=None)
 
 
 def save_checkpoint(queue: mp.Queue, args):
@@ -50,6 +52,18 @@ def save_checkpoint(queue: mp.Queue, args):
         tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_dir)
         tokenizer.save_pretrained(args.save_dir)
 
+    # If eos_token_id is not provided, use the tokenizer's eos_token_id
+    if args.eos_token_id is not None:
+        eos_token_id = args.eos_token_id
+    else:
+        eos_token_id = tokenizer.eos_token_id
+
+    # If bos_token_id is not provided, use the tokenizer's bos_token_id
+    if args.bos_token_id is not None:
+        bos_token_id = args.bos_token_id
+    else:
+        bos_token_id = tokenizer.bos_token_id
+
     hf_config = LlamaConfig(
         vocab_size              = mag_conf.padded_vocab_size,
         hidden_size             = mag_conf.hidden_size,
@@ -66,7 +80,10 @@ def save_checkpoint(queue: mp.Queue, args):
         model_type              = "llama",
         architectures           = ['LlamaForCausalLM'],
         transformers_version    = "4.33.1",
+        eos_token_id            = eos_token_id,
+        bos_token_id            = bos_token_id,
         )
+
     hf_config.save_pretrained(args.save_dir)
 
     state_dict = {}
